@@ -6,11 +6,13 @@ import {
   Network, 
   Activity, 
   ChevronRight, 
-  ChevronDown, 
   Info,
   Lightbulb,
   CheckCircle2,
-  X
+  X,
+  AlertTriangle,
+  Layers,
+  Target
 } from 'lucide-react';
 
 const App = () => {
@@ -29,42 +31,42 @@ const App = () => {
       textColor: "text-blue-700",
       subtopics: [
         {
-          name: "Microsoft Entra (AD)",
+          name: "Microsoft Entra (ID)",
           items: [
             { 
               title: "Create users/groups", 
-              details: "Focus on bulk updates using CSV, dynamic group membership rules (user.department -eq 'Sales'), and administrative units.",
-              tips: "Know the difference between Security groups and Microsoft 365 groups."
+              details: "Manage user/group properties, properties, and licenses. Use dynamic membership rules (e.g., user.department -eq 'Marketing') for automation.",
+              tips: "Know the specific user attributes used in dynamic rules and bulk CSV operations. Managed Identities are preferred over service principals to avoid secret management.",
+              gotcha: "You cannot delete a user or group if they have a license directly assigned. Resource lifecycle boundaries are defined at the RG level, not the user level."
             },
             { 
-              title: "Manage properties & licenses", 
-              details: "Understand group-based licensing and how to resolve license conflicts.",
-              tips: "Directly assigned licenses stay even if a user is removed from a group."
-            },
-            { 
-              title: "External users", 
-              details: "B2B collaboration, guest user settings, and external identity providers.",
-              tips: "Guest users have limited permissions by default."
-            },
-            { 
-              title: "SSPR configuration", 
-              details: "Self-Service Password Reset requirements: authentication methods (Email, SMS, App) and registration enforcement.",
-              tips: "Requires Microsoft Entra ID P1 or P2 license."
+              title: "External users & SSPR", 
+              details: "B2B collaboration involves inviting guest users. Self-Service Password Reset (SSPR) requires specific license levels and configuration of auth methods.",
+              tips: "Sequence for custom domains: Add -> DNS (TXT/MX) -> Verify. DNS verification is a hard requirement.",
+              gotcha: "Mixing up B2B (Guest) vs B2C (Customer) use cases. SSPR needs to be enabled for a group or all users, not individual resources."
             }
           ]
         },
         {
-          name: "Access Control",
+          name: "Access & Governance",
           items: [
             { 
-              title: "Built-in Azure roles", 
-              details: "Owner vs Contributor vs Reader. Contributor cannot grant access to others.",
-              tips: "User Access Administrator is the only role that can manage RBAC without being an Owner."
+              title: "RBAC & Scope", 
+              details: "Hierarchy: Management Group > Subscription > Resource Group > Resource. Permissions are additive and inherited.",
+              tips: "Contributor can do everything except grant access. User Access Administrator handles RBAC. Managed identities avoid secret leakage.",
+              gotcha: "Mixing up RBAC vs Policy. RBAC = WHO can do it. Policy = WHAT is allowed (state/governance). Assigning at Subscription instead of RG violates Least Privilege."
             },
             { 
-              title: "Role assignment at scope", 
-              details: "Inheritance flows from Management Group -> Subscription -> Resource Group -> Resource.",
-              tips: "Deny assignments take precedence over allow assignments."
+              title: "Azure Policy & Costs", 
+              details: "Enforce, Deny, or Audit resource configurations. Manage costs with alerts, budgets, and Advisor recommendations.",
+              tips: "Use Policies to restrict VM sizes or allowed regions across a subscription for governance at scale.",
+              gotcha: "Policy does NOT grant access. If a policy allows a VM type but the user lacks RBAC Contributor, they still can't create it."
+            },
+            { 
+              title: "Locks & Tags", 
+              details: "Locks: CanNotDelete vs ReadOnly. Tags: Key-value pairs for cost allocation and organization.",
+              tips: "Locks apply to all users, even Owners. Tags do NOT inherit from RG to Resource by default.",
+              gotcha: "A ReadOnly lock on a Storage Account prevents anyone from even listing access keys, blocking data plane operations."
             }
           ]
         }
@@ -81,27 +83,36 @@ const App = () => {
       textColor: "text-cyan-700",
       subtopics: [
         {
-          name: "Storage Access",
+          name: "Storage Configuration",
           items: [
             { 
-              title: "Firewalls & VNETs", 
-              details: "Restricting access to specific IP ranges or specific subnets using Service Endpoints.",
-              tips: "Trusted Microsoft services must be explicitly allowed."
+              title: "Storage Accounts & Replication", 
+              details: "LRS, ZRS, GRS, GZRS. Configure redundancy and object replication across accounts.",
+              tips: "RA-GRS provides Read Access to secondary. ZRS is best for high availability within a region.",
+              gotcha: "GRS does NOT provide read access to the secondary unless it is RA-GRS or a failover is initiated manually."
             },
             { 
-              title: "SAS tokens", 
-              details: "Account SAS vs Service SAS. Using stored access policies to revoke tokens.",
-              tips: "Always prefer User Delegation SAS (Entra ID) over Account Keys."
+              title: "Access & Security", 
+              details: "Firewalls, VNET integration, SAS tokens, and Stored Access Policies. Manage keys and identity-based access for Files.",
+              tips: "Use User-Delegation SAS (Entra ID) for better security than Account Keys. SAS tokens provide limited-time scoped access.",
+              gotcha: "Changing a storage account key immediately invalidates all applications currently using that specific key. Use Stored Access Policies to revoke SAS easily."
             }
           ]
         },
         {
-          name: "Storage Accounts",
+          name: "Data Management",
           items: [
             { 
-              title: "Redundancy (LRS, GRS, etc.)", 
-              details: "LRS (3 copies, 1 DC), ZRS (3 copies, 3 zones), GRS (6 copies, 2 regions).",
-              tips: "Know that RA-GRS provides read-only access to the secondary region."
+              title: "Blob & File Tiers", 
+              details: "Hot, Cool, Archive. Lifecycle management moves data based on age or last access.",
+              tips: "Azure File Sync is the key for hybrid/on-prem lift-and-shift integration.",
+              gotcha: "Picking Blobs for a scenario that requires a legacy application to map a drive letter (often needs Files). Archive tier blobs must be rehydrated before use."
+            },
+            { 
+              title: "Protection (Soft Delete)", 
+              details: "Soft delete for blobs, containers, and file shares. Versioning and snapshots.",
+              tips: "Use Azure Storage Explorer or AzCopy for large data migrations or management.",
+              gotcha: "Soft delete protects against accidental deletion but is not a replacement for a structured backup policy."
             }
           ]
         }
@@ -109,7 +120,7 @@ const App = () => {
     },
     {
       id: 2,
-      title: "Deploy & Manage Compute Resources",
+      title: "Deploy & Manage Compute",
       percentage: "20–25%",
       icon: <Cpu className="w-8 h-8" />,
       color: "bg-indigo-600",
@@ -118,22 +129,36 @@ const App = () => {
       textColor: "text-indigo-700",
       subtopics: [
         {
-          name: "Virtual Machines",
+          name: "VMs & Automation",
           items: [
             { 
-              title: "VM Creation", 
-              details: "OS types, sizing (vCPUs/RAM), and region selection.",
-              tips: "VMs must be in the same region as the VNET they connect to."
+              title: "ARM & Bicep", 
+              details: "Interpret, modify, and deploy templates. Export existing deployments as code.",
+              tips: "Focus on 'Incremental' vs 'Complete' deployment modes. Bicep is the Azure-native evolution of ARM JSON.",
+              gotcha: "Complete mode DELETES resources in the group not defined in the template. Incremental is the safer, more common exam choice."
             },
             { 
-              title: "Availability Sets/Zones", 
-              details: "AS protects against hardware failure (Fault Domains) and updates (Update Domains). AZ protects against entire DC failure.",
-              tips: "Availability Zones provide a 99.99% SLA."
+              title: "VM Resiliency", 
+              details: "Availability Sets (Fault/Update domains) vs Availability Zones. Sizing and Disk management.",
+              tips: "Zones offer a 99.99% SLA. Sets offer 99.95%. VMSS (Scale Sets) for auto-scaling.",
+              gotcha: "You cannot move an existing VM into an Availability Zone after it's created. It must be selected during the creation process."
+            }
+          ]
+        },
+        {
+          name: "Containers & PaaS",
+          items: [
+            { 
+              title: "App Service", 
+              details: "Plans, scaling, custom DNS, TLS/SSL, and deployment slots.",
+              tips: "Scaling Up (Hardware) vs Scaling Out (Instances). Slots allow zero-downtime deployments.",
+              gotcha: "Overusing VMs (IaaS) when PaaS (App Service) fits. Always prefer PaaS in scenarios asking for reduced management overhead."
             },
             { 
-              title: "Scale Sets (VMSS)", 
-              details: "Auto-scaling based on metrics (CPU, Memory). Horizontal vs Vertical scaling.",
-              tips: "Overprovisioning allows VMSS to spin up extra VMs to ensure successful deployment."
+              title: "ACI & Containers", 
+              details: "Azure Container Registry (ACR), Container Instances (ACI), and Container Apps (ACA).",
+              tips: "ACI is for simple, isolated containers. ACA is for serverless microservices that need scaling.",
+              gotcha: "Not matching scaling needs to the right compute. ACI does not auto-scale; ACA/VMSS does."
             }
           ]
         }
@@ -141,7 +166,7 @@ const App = () => {
     },
     {
       id: 3,
-      title: "Implement & Manage Virtual Networking",
+      title: "Virtual Networking",
       percentage: "15–20%",
       icon: <Network className="w-8 h-8" />,
       color: "bg-purple-600",
@@ -150,17 +175,36 @@ const App = () => {
       textColor: "text-purple-700",
       subtopics: [
         {
-          name: "Network Security",
+          name: "VNET Configuration",
           items: [
             { 
-              title: "NSGs & ASGs", 
-              details: "Security rules (Priority 100-65000). Application Security Groups allow grouping by function (e.g., 'WebServers').",
-              tips: "Default rules allow internal VNET traffic and outbound Internet traffic."
+              title: "Peering & Routes", 
+              details: "VNET peering, Public IPs, and User-Defined Routes (UDR) for traffic steering.",
+              tips: "Peering is NOT transitive. If A peers with B, and B with C, A is not peered with C.",
+              gotcha: "Overlapping IP address spaces prevent peering. System routes exist by default; UDRs override them (Next Hop: NVA)."
             },
             { 
-              title: "Azure Bastion", 
-              details: "Secure RDP/SSH via browser without exposing public IPs on VMs.",
-              tips: "Bastion is deployed in a dedicated subnet named 'AzureBastionSubnet'."
+              title: "Connectivity Support", 
+              details: "Azure Bastion for secure RDP/SSH. Service Endpoints vs Private Endpoints.",
+              tips: "Bastion provides access via browser/SSL, eliminating the need for Public IPs on VMs.",
+              gotcha: "Private Endpoints provide a private IP to a PaaS service; Service Endpoints keep traffic on the backbone but use public IPs."
+            }
+          ]
+        },
+        {
+          name: "Security & Load Balancing",
+          items: [
+            { 
+              title: "NSG & ASG", 
+              details: "Network Security Groups (L4) and Application Security Groups (labels). Effective rule evaluation.",
+              tips: "Rules are processed 100-65000. First match wins. Inbound and Outbound are separate.",
+              gotcha: "Confusing what an NSG can filter. They filter by Port/Protocol/IP (L4), NOT URLs (L7). Use App Gateway for URLs."
+            },
+            { 
+              title: "Load Balancers", 
+              details: "Internal vs Public. Basic vs Standard. Troubleshooting health probes.",
+              tips: "Standard LB is required for Availability Zones and is secure-by-default (requires NSG).",
+              gotcha: "Layer 4 (LB) vs Layer 7 (App Gateway). Pick the 'right front door'—if you need cookie-based affinity, go Layer 7."
             }
           ]
         }
@@ -168,7 +212,7 @@ const App = () => {
     },
     {
       id: 4,
-      title: "Monitor & Maintain Resources",
+      title: "Monitor & Maintain",
       percentage: "10–15%",
       icon: <Activity className="w-8 h-8" />,
       color: "bg-rose-600",
@@ -180,9 +224,16 @@ const App = () => {
           name: "Monitoring",
           items: [
             { 
-              title: "Log Analytics Queries", 
-              details: "Using Kusto Query Language (KQL) to filter and aggregate logs.",
-              tips: "Common command: 'Heartbeat | summarize count() by bin(TimeGenerated, 1h), Computer'."
+              title: "Azure Monitor & Logs", 
+              details: "Metrics, Logs, KQL queries, and Alerts. Action groups and alert processing rules.",
+              tips: "Use KQL (Kusto) to query Log Analytics. Diagnostic settings must be manually enabled for most services.",
+              gotcha: "Treating logs (detailed records) and metrics (numerical/real-time) as the same. Metrics are for alerting; logs for troubleshooting."
+            },
+            { 
+              title: "Network Watcher", 
+              details: "Connection Monitor, IP Flow Verify, and NSG Flow Logs.",
+              tips: "IP Flow Verify is the fastest way to check if an NSG is blocking a specific port.",
+              gotcha: "Network Watcher is region-specific; ensure it is enabled in the region you are troubleshooting."
             }
           ]
         },
@@ -190,9 +241,10 @@ const App = () => {
           name: "Backup & Recovery",
           items: [
             { 
-              title: "Recovery Services Vaults", 
-              details: "Storage for VM backups and Azure Site Recovery data.",
-              tips: "Soft Delete for backups is enabled by default (14-day retention)."
+              title: "Recovery Services Vault", 
+              details: "Azure Backup policies and Site Recovery (ASR) for disaster recovery.",
+              tips: "Backup is for data/file recovery. ASR is for failing over to a secondary region when the primary is down.",
+              gotcha: "Confusing Backup (Point-in-time recovery) with ASR (Replication/Availability). ASR is about RTO/RPO and regional failover."
             }
           ]
         }
@@ -206,80 +258,77 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <header className="mb-8 text-center md:text-left border-b border-slate-200 pb-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl leading-tight">
-                AZ-104 <span className="text-blue-600">Azure Administrator</span>
-              </h1>
-              <p className="mt-2 text-lg text-slate-600 font-medium">Interactive Knowledge Map</p>
-            </div>
-            <div className="inline-flex items-center px-4 py-2 bg-white shadow-sm border border-slate-200 text-slate-700 rounded-2xl text-sm font-semibold">
-              <Info className="w-4 h-4 mr-2 text-blue-500" />
-              Click skills for deep-dive details
-            </div>
-          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl leading-tight">
+            AZ-104 <span className="text-blue-600">Administrator Blueprint</span>
+          </h1>
+          <p className="mt-2 text-lg text-slate-600 font-medium italic">Decision Logic • Skill Map • Exam Traps</p>
         </header>
 
-        {/* Domain Selection Tabs */}
+        {/* Domain Navigation */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
           {examData.map((domain) => (
             <button
               key={domain.id}
               onClick={() => { setActiveTab(domain.id); setSelectedItem(null); }}
-              className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center text-center group ${
+              className={`p-4 rounded-3xl border-2 transition-all flex flex-col items-center text-center group ${
                 activeTab === domain.id 
-                ? `${domain.borderColor} ${domain.lightColor} shadow-md scale-105` 
-                : 'border-transparent bg-white hover:bg-slate-100'
+                ? `${domain.borderColor} ${domain.lightColor} shadow-lg scale-105` 
+                : 'border-transparent bg-white hover:bg-slate-50 hover:border-slate-100 shadow-sm'
               }`}
             >
-              <div className={`p-2 rounded-xl transition-transform group-hover:scale-110 ${domain.color} text-white mb-2`}>
-                {React.cloneElement(domain.icon, { className: "w-5 h-5" })}
+              <div className={`p-3 rounded-2xl transition-transform group-hover:scale-110 ${domain.color} text-white mb-3 shadow-md`}>
+                {React.cloneElement(domain.icon, { className: "w-6 h-6" })}
               </div>
-              <span className={`text-sm font-black ${domain.textColor}`}>{domain.percentage}</span>
+              <span className={`text-xs font-black ${domain.textColor} uppercase tracking-tighter`}>{domain.percentage}</span>
             </button>
           ))}
         </div>
 
-        {/* Two-Column Layout */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        {/* Main Content Split View */}
+        <div className="flex flex-col lg:flex-row gap-8">
           
-          {/* List Section */}
-          <div className="flex-1 bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
-            <div className="p-6 md:p-8">
-              <div className="flex items-center gap-4 mb-8">
-                <div className={`p-4 rounded-2xl ${examData[activeTab].color} text-white shadow-lg`}>
-                  {examData[activeTab].icon}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-slate-800">{examData[activeTab].title}</h3>
-                  <p className="text-slate-500 font-medium tracking-wide">Domain {activeTab + 1} • {examData[activeTab].percentage}</p>
+          {/* Main List Section */}
+          <div className="flex-1 bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden">
+            <div className="p-6 md:p-10">
+              <div className="flex items-center justify-between mb-10 pb-6 border-b border-slate-50">
+                <div className="flex items-center gap-5">
+                  <div className={`p-5 rounded-2xl ${examData[activeTab].color} text-white shadow-lg`}>
+                    {examData[activeTab].icon}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-slate-800 leading-tight">{examData[activeTab].title}</h3>
+                    <p className="text-slate-500 font-semibold tracking-wide flex items-center gap-2 mt-1">
+                      <Target className="w-4 h-4 text-slate-400" />
+                      Section Weight: {examData[activeTab].percentage}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-10">
+              <div className="space-y-12">
                 {examData[activeTab].subtopics.map((sub, idx) => (
-                  <div key={idx} className="relative pl-6 border-l-2 border-slate-100">
-                    <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${examData[activeTab].color}`}></div>
-                    <h4 className={`text-md font-bold uppercase tracking-widest mb-4 ${examData[activeTab].textColor}`}>{sub.name}</h4>
-                    <div className="grid grid-cols-1 gap-3">
+                  <div key={idx} className="relative pl-8 border-l-2 border-slate-100">
+                    <div className={`absolute -left-[11px] top-0 w-5 h-5 rounded-full border-4 border-white shadow-md ${examData[activeTab].color}`}></div>
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.25em] mb-6">{sub.name}</h4>
+                    <div className="grid grid-cols-1 gap-4">
                       {sub.items.map((item, i) => (
                         <button 
                           key={i} 
                           onClick={() => handleItemClick(item)}
-                          className={`group flex items-center justify-between text-left p-4 rounded-xl transition-all border ${
+                          className={`group flex items-center justify-between text-left p-5 rounded-2xl transition-all border-2 ${
                             selectedItem?.title === item.title 
                             ? `${examData[activeTab].borderColor} ${examData[activeTab].lightColor} ring-1 ring-inset ${examData[activeTab].borderColor}` 
-                            : 'bg-slate-50 border-transparent hover:bg-white hover:border-slate-200 hover:shadow-md'
+                            : 'bg-white border-slate-50 hover:bg-slate-50 hover:border-slate-200 hover:shadow-lg'
                           }`}
                         >
-                          <span className="font-semibold text-slate-700 flex items-center gap-3">
-                            <CheckCircle2 className={`w-4 h-4 ${selectedItem?.title === item.title ? examData[activeTab].textColor : 'text-slate-300'}`} />
+                          <span className="font-bold text-slate-700 flex items-center gap-4">
+                            <CheckCircle2 className={`w-5 h-5 transition-colors ${selectedItem?.title === item.title ? examData[activeTab].textColor : 'text-slate-200 group-hover:text-slate-400'}`} />
                             {item.title}
                           </span>
-                          <ChevronRight className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${examData[activeTab].textColor}`} />
+                          <ChevronRight className={`w-5 h-5 transition-all group-hover:translate-x-1.5 ${examData[activeTab].textColor}`} />
                         </button>
                       ))}
                     </div>
@@ -289,77 +338,99 @@ const App = () => {
             </div>
           </div>
 
-          {/* Details Pane */}
-          <div className="lg:w-96 flex flex-col">
+          {/* Details Sidebar */}
+          <div className="lg:w-[420px] flex flex-col">
             {selectedItem ? (
-              <div className="bg-slate-900 rounded-3xl p-8 text-white sticky top-8 shadow-2xl animate-in slide-in-from-right-4 duration-300">
-                <div className="flex justify-between items-start mb-6">
-                  <div className={`p-2 rounded-lg ${examData[activeTab].color} bg-opacity-20`}>
-                    <Lightbulb className="w-6 h-6 text-yellow-400" />
-                  </div>
-                  <button onClick={() => setSelectedItem(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
-                    <X className="w-6 h-6 text-slate-400" />
+              <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white sticky top-8 shadow-2xl transition-all animate-in slide-in-from-right-8 duration-500">
+                <div className="flex justify-between items-start mb-8">
+                  <h3 className="text-2xl font-bold leading-tight border-b border-white/10 pb-4 flex-1 mr-4">{selectedItem.title}</h3>
+                  <button onClick={() => setSelectedItem(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors group">
+                    <X className="w-6 h-6 text-slate-500 group-hover:text-white" />
                   </button>
                 </div>
                 
-                <h3 className="text-xl font-bold mb-4">{selectedItem.title}</h3>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Key Concepts</h4>
-                    <p className="text-slate-300 leading-relaxed text-sm">
+                <div className="space-y-8">
+                  <section>
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Layers className="w-3 h-3" /> Technical Breakdown
+                    </h4>
+                    <p className="text-slate-300 leading-relaxed font-medium">
                       {selectedItem.details}
                     </p>
-                  </div>
+                  </section>
 
-                  <div className={`p-4 rounded-2xl bg-white/5 border border-white/10`}>
-                    <h4 className="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <Info className="w-3 h-3" /> Exam Tip
-                    </h4>
-                    <p className="text-slate-300 text-sm italic">
+                  <section className="bg-blue-500/10 border border-blue-500/20 rounded-3xl p-6 relative overflow-hidden">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-xl bg-blue-500/20">
+                        <Lightbulb className="w-5 h-5 text-yellow-400" />
+                      </div>
+                      <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Study Tip</h4>
+                    </div>
+                    <p className="text-slate-200 text-sm italic leading-relaxed relative z-10">
                       "{selectedItem.tips}"
                     </p>
-                  </div>
+                  </section>
+
+                  {selectedItem.gotcha && (
+                    <section className="bg-rose-500/10 border border-rose-500/30 rounded-3xl p-6 relative overflow-hidden">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 rounded-xl bg-rose-500/20">
+                          <AlertTriangle className="w-5 h-5 text-rose-400" />
+                        </div>
+                        <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest">EXAM GOTCHA</h4>
+                      </div>
+                      <p className="text-rose-100 text-sm font-bold leading-relaxed relative z-10">
+                        {selectedItem.gotcha}
+                      </p>
+                    </section>
+                  )}
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-white/10">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Part of Domain {activeTab + 1}</p>
+                <div className="mt-12 pt-8 border-t border-white/10 text-center">
+                  <p className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Competency Map Verified</p>
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-100 border-2 border-dashed border-slate-300 rounded-3xl p-8 text-center flex flex-col items-center justify-center min-h-[300px] sticky top-8">
-                <div className="bg-slate-200 p-4 rounded-full mb-4">
-                  <ChevronRight className="w-8 h-8 text-slate-400" />
+              <div className="bg-white border-2 border-slate-100 rounded-[2.5rem] p-12 text-center flex flex-col items-center justify-center min-h-[400px] sticky top-8 shadow-inner">
+                <div className="bg-slate-50 p-6 rounded-full mb-6">
+                  <Info className="w-10 h-10 text-slate-300" />
                 </div>
-                <p className="text-slate-500 font-semibold">Select a skill to see <br/>study notes & exam tips</p>
+                <h4 className="text-lg font-bold text-slate-400 mb-2">Knowledge Base</h4>
+                <p className="text-slate-400 font-medium max-w-[220px]">Select a skill to reveal detailed notes, study tips, and high-probability exam traps.</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Progress Bar Footer */}
-        <div className="mt-12 bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex justify-between items-end mb-4">
-            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Weight Distribution</h2>
-            <span className="text-xs text-slate-500 italic">Percentages vary slightly per exam instance</span>
-          </div>
-          <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100">
-            {examData.map((domain) => {
-              const avg = parseInt(domain.percentage.split('–')[0]);
-              return (
-                <div 
-                  key={domain.id}
-                  style={{ flex: avg }}
-                  className={`${domain.color} border-r border-white/20 last:border-0`}
-                  title={`${domain.title}: ${domain.percentage}`}
-                />
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-5 mt-3 text-[10px] font-bold text-slate-400">
-             {examData.map(d => <div key={d.id} className="text-center">{d.percentage}</div>)}
-          </div>
-        </div>
+        {/* Dynamic Distribution Bar */}
+        <footer className="mt-12 bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+             <div className="text-center md:text-left">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Domain Distribution</h4>
+                <p className="text-lg font-bold text-slate-800">Section Proportions</p>
+             </div>
+             <div className="flex-1 w-full max-w-xl">
+                <div className="flex h-4 w-full rounded-full overflow-hidden bg-slate-100">
+                  {examData.map((domain) => {
+                    const avg = parseInt(domain.percentage.split('–')[0]);
+                    return (
+                      <div 
+                        key={domain.id}
+                        style={{ flex: avg }}
+                        className={`${domain.color} border-r border-white/20 last:border-0`}
+                        title={`${domain.title}: ${domain.percentage}`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-5 mt-3">
+                  {examData.map(d => (
+                    <div key={d.id} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{d.percentage}</div>
+                  ))}
+                </div>
+             </div>
+           </div>
+        </footer>
       </div>
     </div>
   );
